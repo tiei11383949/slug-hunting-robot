@@ -1,0 +1,282 @@
+source /opt/ros/humble/setup.bash
+source install/setup.bash
+
+#####################################################
+https://github.com/kevin-robb/orb_slam_implementation
+https://github.com/UZ-SLAMLab/ORB_SLAM3
+#####################################################
+
+#####################################################
+Install dependencies
+#####################################################
+sudo add-apt-repository "deb http://security.ubuntu.com/ubuntu xenial-security main"
+sudo apt update
+sudo apt-get install build-essential
+sudo apt-get install cmake git libgtk2.0-dev pkg-config libavcodec-dev libavformat-dev libswscale-dev
+sudo apt-get install python-dev python-numpy libtbb2 libtbb-dev libjpeg-dev libpng-dev libtiff-dev libdc1394-22-dev libjasper-dev
+sudo apt-get install libglew-dev libboost-all-dev libssl-dev
+sudo apt install libeigen3-dev
+sudo apt-get install libcanberra-gtk-module
+####################################
+
+#####################################################
+Install OpenCV4
+#####################################################
+cd ~
+mkdir Dev && cd Dev
+git clone https://github.com/opencv/opencv.git
+cd opencv
+git checkout 4.4.0
+#git checkout 4.2.0
+####################################
+nano ./modules/videoio/src/cap_ffmpeg_impl.hpp
+
+##add the following three lines at the top of the file:
+
+#define AV_CODEC_FLAG_GLOBAL_HEADER (1 << 22)
+#define CODEC_FLAG_GLOBAL_HEADER AV_CODEC_FLAG_GLOBAL_HEADER
+#define AVFMT_RAWPICTURE 0x0020
+####################################
+mkdir build
+cd build
+cmake -D CMAKE_BUILD_TYPE=Release -D WITH_CUDA=OFF -D CMAKE_INSTALL_PREFIX=/usr/local ..
+make -j 3
+sudo make install
+cd ..
+cd ..
+mv opencv opencv4
+---------------EEROR-----------------
+## error: ‘sleep_for’ is not a member of ‘std::this_thread’
+  448 |        std::this_thread::sleep_for(std::chrono::milliseconds{2});
+##https://github.com/linuxdeepin/developer-center/issues/2314  
+  
+## /Dev/opencv/modules/gapi/test/gapi_async_test.cpp
+add #include<thread> to the path above
+####################################
+
+#####################################################
+Install OpenCV3
+#####################################################
+cd ~
+mkdir Dev && cd Dev
+git clone https://github.com/opencv/opencv.git
+cd opencv
+git checkout 3.2.0
+####################################
+nano ./modules/videoio/src/cap_ffmpeg_impl.hpp
+
+##add the following three lines at the top of the file:
+
+#define AV_CODEC_FLAG_GLOBAL_HEADER (1 << 22)
+#define CODEC_FLAG_GLOBAL_HEADER AV_CODEC_FLAG_GLOBAL_HEADER
+#define AVFMT_RAWPICTURE 0x0020
+####################################
+mkdir build
+cd build
+cmake -D CMAKE_BUILD_TYPE=Release -D WITH_CUDA=OFF -D CMAKE_INSTALL_PREFIX=/usr/local ..
+make -j 3
+sudo make install
+---------------EEROR-----------------
+##CMake Error at cmake/OpenCVCompilerOptions.cmake:21 (else):
+  Flow control statements are not properly nested.
+##https://blog.csdn.net/qq_57061492/article/details/126171010
+-------------------------------------
+## error: ISO C++17 does not allow dynamic exception specifications
+  187 |     void reloadConfig() throw (GPhoto2Exception);
+  
+## https://askubuntu.com/questions/1192955/how-to-install-g-10-on-ubuntu-18-04
+sudo apt-get update
+sudo apt install gcc-10
+sudo apt install g++-10
+
+#Remove the previous alternatives
+sudo update-alternatives --remove-all gcc
+sudo update-alternatives --remove-all g++
+
+#Define the compiler
+sudo update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-10 30
+sudo update-alternatives --install /usr/bin/g++ g++ /usr/bin/g++-10 30
+sudo update-alternatives --install /usr/bin/cc cc /usr/bin/gcc 30
+sudo update-alternatives --set cc /usr/bin/gcc
+sudo update-alternatives --install /usr/bin/c++ c++ /usr/bin/g++ 30
+sudo update-alternatives --set c++ /usr/bin/g++
+
+#Confirm and update (You can use the default setting)
+sudo update-alternatives --config gcc
+sudo update-alternatives --config g++
+------------------------------------
+##error: invalid conversion from ‘const char*’ to ‘char*’ [-fpermissive]
+##https://blog.csdn.net/weixin_45442591/article/details/130513072
+####################################
+
+#####################################################
+Install Pangolin
+#####################################################
+cd ~/Dev
+git clone https://github.com/stevenlovegrove/Pangolin.git
+cd Pangolin 
+git checkout 86eb4975fc4fc8b5d92148c2e370045ae9bf9f5d
+mkdir build 
+cd build 
+cmake .. -D CMAKE_BUILD_TYPE=Release 
+make -j 3 
+sudo make install
+####################################
+
+#####################################################
+Install ORB_SLAM3
+#####################################################
+cd ~/Dev
+git clone https://github.com/UZ-SLAMLab/ORB_SLAM3.git 
+cd ORB_SLAM3
+
+nano ./include/LoopClosing.h ##line 51
+## Eigen::aligned_allocator<std::pair<const KeyFrame*, g2o::Sim3> > > KeyFrameAndPose;
+## ->
+## Eigen::aligned_allocator<std::pair<KeyFrame *const, g2o::Sim3> > > KeyFrameAndPose;
+
+nano ./src/System.cc
+## Map* pBiggerMap;
+## ->
+## Map* pBiggerMap = nullptr;
+
+./build.sh
+----------------------------------------------------
+cd Thirdparty/DBoW2
+mkdir build
+cd build
+cmake .. -DCMAKE_BUILD_TYPE=Release 
+-D WITH_GTK=ON -D WITH_GTK3=ON -D WITH_GTK_2_X=OFF -DENABLE_PRECOMPILED_HEADERS=OFF
+make -j
+
+cd ../../g2o
+mkdir build
+cd build
+cmake .. -DCMAKE_BUILD_TYPE=Release
+make -j 
+
+cd ../../Sophus
+mkdir build
+cd build
+cmake .. -DCMAKE_BUILD_TYPE=Release
+make -j
+
+cd ../../../
+cd Vocabulary
+tar -xf ORBvoc.txt.tar.gz
+cd ..
+
+mkdir build
+cd build
+cmake .. -DCMAKE_BUILD_TYPE=Release
+make 
+####################################
+---------------------------------------
+./Examples/Monocular/mono_realsense_D435i ./Vocabulary/ORBvoc.txt ./Examples/Monocular/RealSense_D435i.yaml
+
+./Examples/Stereo/stereo_realsense_D435i ./Vocabulary/ORBvoc.txt ./Examples/Stereo/RealSense_D435i.yaml
+
+./Examples/RGB-D/rgbd_realsense_D435i ./Vocabulary/ORBvoc.txt ./Examples/RGB-D/RealSense_D435i.yaml
+-----------------------------------------------------
+
+#####################################################
+https://github.com/zang09/ORB_SLAM3_ROS2
+#####################################################
+
+#####################################################
+Install ORB_SLAM3_ROS2
+#####################################################
+mkdir -p colcon_ws/src
+cd ~/colcon_ws/src
+git clone https://github.com/zang09/ORB_SLAM3_ROS2.git orbslam3_ros2
+####################################
+nano CMakeLists.txt
+## set(ENV{PYTHONPATH} "/opt/ros/humble/lib/python3.10/site-packages/")
+
+nano /CMakeModules/FindORB_SLAM3.cmake
+## set(ORB_SLAM3_ROOT_DIR "~/Dev/ORB_SLAM3")
+####################################
+cd ~/Dev/colcon_ws
+colcon build --symlink-install --packages-select orbslam3
+source install/setup.bash
+
+---------------EEROR-----------------
+##error adding symbols: DSO missing from command line
+##https://github.com/alsora/ros2-ORB_SLAM2/issues/8
+-------------------------------------
+##cannot find sophus/se3.hpp
+##https://github.com/zang09/ORB_SLAM3_ROS2
+####################################
+
+nano /src/monocular/monocular-slam-node.cpp
+##"/camera",
+##->
+##"/camera/camera/color/image_raw",
+
+ros2 run orbslam3 mono ~/Dev/colcon_ws/src/orbslam3_ros2/vocabulary/ORBvoc.txt ~/Dev/colcon_ws/src/orbslam3_ros2/config/monocular/RealSense_D435i.yaml
+
+-------------------------------------
+nano /src/rgbd/rgbd-slam-node.cpp
+
+##"camera/rgb"
+##->
+##"/camera/camera/color/image_raw",
+
+##"camera/depth"
+##->
+##"/camera/camera/depth/image_rect_raw",
+
+ros2 run orbslam3 rgbd ~/Dev/colcon_ws/src/orbslam3_ros2/vocabulary/ORBvoc.txt ~/Dev/colcon_ws/src/orbslam3_ros2/config/rgb-d/RealSense_D435i.yaml
+
+-------------------------------------
+
+nano /src/stereo/stereo-slam-node.cpp
+
+##"camera/left"
+##->
+##"/camera/camera/infra1/image_rect_raw",
+
+##"camera/right"
+##->
+##"/camera/camera/infra2/image_rect_raw",
+
+ros2 run orbslam3 stereo ~/Dev/colcon_ws/src/orbslam3_ros2/vocabulary/ORBvoc.txt ~/Dev/colcon_ws/src/orbslam3_ros2/config/stereo/RealSense_D435i.yaml 0
+
+##ros2 run orbslam3 stereo ~/Dev/colcon_ws/src/orbslam3_ros2/vocabulary/ORBvoc.txt ~/Dev/colcon_ws/src/orbslam3_ros2/config/stereo/RealSense_D435i.yaml true
+
+---------------EEROR-----------------
+Depth Threshold (Close/Far Points): 2.98185
+
+ORB Extractor Parameters: 
+- Number of Features: 1250
+- Scale Levels: 8
+- Scale Factor: 1.2
+- Initial Fast Threshold: 20
+- Minimum Fast Threshold: 7
+There are 1 cameras in the atlas
+Camera 0 is pinhole
+Shutdown
+
+Saving keyframe trajectory to KeyFrameTrajectory.txt ...
+double free or corruption (out)
+[ros2run]: Aborted
+
+##https://github.com/zang09/ORB_SLAM3_ROS2/issues/24
+-------------------------------------
+##many light spots caused by laser emitter
+
+ros2 run rqt_reconfigure rqt_reconfigure 
+
+##https://support.intelrealsense.com/hc/en-us/community/posts/8070138751763-Two-D435i-IR-related-problem
+##https://github.com/IntelRealSense/realsense-ros/issues/1651
+
+--------------------------------------
+##Gtk-ERROR **: GTK+ 2.x symbols detected. Using GTK+ 2.x and GTK+ 3 in the same process is not supported 
+
+cmake -D CMAKE_BUILD_TYPE=Release -D WITH_CUDA=OFF -D WITH_GTK=ON -D WITH_GTK3=ON -D WITH_GTK_2_X=OFF -DENABLE_PRECOMPILED_HEADERS=OFF -D CMAKE_INSTALL_PREFIX=/usr/local  ..
+##https://github.com/thien94/orb_slam3_ros_wrapper/issues/16
+
+--------------EVALUATION---------------
+##https://nvidia-isaac-ros.github.io/concepts/visual_slam/cuvslam/tutorial_isaac_sim.html
+##https://blog.csdn.net/zardforever123/article/details/125044004
+---------------------------------------
